@@ -1,0 +1,18 @@
+name: Build APK (Huiyun Remote)
+
+# 两种触发方式：
+#   1) 往 master 推代码 —— 自动开始构建（一键脚本就是靠这个）
+#   2) 仓库页面 -> Actions -> 左侧选这个 -> Run workflow（手动重跑）
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  build:
+    uses: ./.github/workflows/flutter-build.yml
+    secrets: inherit
+    with:
+      upload-artifact: true
+      upload-tag: "huiyun"
