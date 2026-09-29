@@ -341,6 +341,16 @@ jobs:
           name: rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.apk
           path: ${{steps.sign-rustdesk.outputs.signedReleaseFile}}
 
+  build-rustdesk-android-universal:
+    needs: [build-rustdesk-android]
+    name: build rustdesk android universal apk
+    if: ${{ inputs.upload-artifact }}
+    runs-on: ubuntu-24.04
+    env:
+      reltype: release
+      x86_target: "" # can be ",android-x86"
+      suffix: ""
+    steps:
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
         with:
