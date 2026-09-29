@@ -307,14 +307,6 @@ jobs:
           mkdir -p signed-apk; pushd signed-apk
           mv ../rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}${{ matrix.job.suffix }}.apk .
 
-      # 官方那步上传被 ANDROID_SIGNING_KEY 门控，没签名密钥就下不到产物；
-      # 这里无条件再传一份，保证 Actions 页面一定能下载到 APK。
-      - name: Upload APK artifact (huiyun)
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: huiyun-apk-${{ matrix.job.arch }}
-          path: signed-apk/*.apk
-          if-no-files-found: error
 
       # https://github.com/r0adkll/sign-android-release/issues/84#issuecomment-1889636075
       - name: Setup sign tool version variable
@@ -337,6 +329,26 @@ jobs:
         env:
           # env.ANDROID_SIGN_TOOL_VERSION is set by Step "Setup sign tool version variable"
           BUILD_TOOLS_VERSION: ${{ env.ANDROID_SIGN_TOOL_VERSION }}
+
+      # 官方那步「上传 APK」被 ANDROID_SIGNING_KEY 门控；这里无条件上传一份。
+      # 放在签名步骤之后，并优先取已用我们自己的发布密钥重新签名的那个 APK。
+      - name: Collect final APK (huiyun)
+        shell: bash
+        run: |
+          mkdir -p final-apk
+          SIGNED="${{ steps.sign-rustdesk.outputs.signedReleaseFile }}"
+          if [ -n "${SIGNED}" ] && [ -f "${SIGNED}" ]; then
+            cp "${SIGNED}" final-apk/
+          else
+            cp signed-apk/*.apk final-apk/ || true
+          fi
+          ls -la final-apk
+      - name: Upload APK artifact (huiyun)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: huiyun-apk-${{ matrix.job.arch }}
+          path: final-apk/*.apk
+          if-no-files-found: error
 
       - name: Upload Artifacts
         if: env.ANDROID_SIGNING_KEY != null && env.UPLOAD_ARTIFACT == 'true'
@@ -483,14 +495,6 @@ jobs:
           mkdir -p signed-apk
           mv ./flutter/build/app/outputs/flutter-apk/app-${{ env.reltype }}.apk signed-apk/rustdesk-${{ env.VERSION }}-universal${{ env.suffix }}.apk
 
-      # 官方那步上传被 ANDROID_SIGNING_KEY 门控，没签名密钥就下不到产物；
-      # 这里无条件再传一份，保证 Actions 页面一定能下载到 APK。
-      - name: Upload APK artifact (huiyun)
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: huiyun-apk-universal
-          path: signed-apk/*.apk
-          if-no-files-found: error
 
       # https://github.com/r0adkll/sign-android-release/issues/84#issuecomment-1889636075
       - name: Setup sign tool version variable
@@ -513,6 +517,26 @@ jobs:
         env:
           # env.ANDROID_SIGN_TOOL_VERSION is set by Step "Setup sign tool version variable"
           BUILD_TOOLS_VERSION: ${{ env.ANDROID_SIGN_TOOL_VERSION }}
+
+      # 官方那步「上传 APK」被 ANDROID_SIGNING_KEY 门控；这里无条件上传一份。
+      # 放在签名步骤之后，并优先取已用我们自己的发布密钥重新签名的那个 APK。
+      - name: Collect final APK (huiyun)
+        shell: bash
+        run: |
+          mkdir -p final-apk
+          SIGNED="${{ steps.sign-rustdesk.outputs.signedReleaseFile }}"
+          if [ -n "${SIGNED}" ] && [ -f "${SIGNED}" ]; then
+            cp "${SIGNED}" final-apk/
+          else
+            cp signed-apk/*.apk final-apk/ || true
+          fi
+          ls -la final-apk
+      - name: Upload APK artifact (huiyun)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: huiyun-apk-universal
+          path: final-apk/*.apk
+          if-no-files-found: error
 
       - name: Upload Artifacts
         if: env.ANDROID_SIGNING_KEY != null && env.UPLOAD_ARTIFACT == 'true'
