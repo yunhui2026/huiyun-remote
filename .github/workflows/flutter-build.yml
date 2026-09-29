@@ -35,7 +35,9 @@ env:
   # for arm64 linux because official Dart SDK does not work
   FLUTTER_ELINUX_VERSION: "3.16.9"
   TAG_NAME: "${{ inputs.upload-tag }}"
-  VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
+  # 关闭 vcpkg 的 x-gha 远程二进制缓存：它依赖已废弃的 actions 缓存 API，
+  # 缓存服务异常时会直接让 `vcpkg install` 失败（本次失败高度怀疑就是这个）。
+  # VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
   # vcpkg version: 2026.07.29
   # If we change the `VCPKG COMMIT_ID`, please remember:
   # 1. Call `$VCPKG_ROOT/vcpkg x-update-baseline` to update the baseline in `vcpkg.json`.
@@ -187,6 +189,11 @@ jobs:
             ;;
           esac
           if ! ./flutter/build_android_deps.sh "${ANDROID_TARGET}"; then
+            echo "::error::vcpkg 步骤失败。ANDROID_NDK_HOME='${ANDROID_NDK_HOME}' VCPKG_ROOT='${VCPKG_ROOT}' ANDROID_TARGET='${ANDROID_TARGET}'"
+            find "${VCPKG_ROOT}/" -name "*.log" -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -4 | cut -d' ' -f2- | while IFS= read -r f; do
+              echo "::error::===== ${f} (last 12 lines) ====="
+              tail -n 12 "$f" | while IFS= read -r line; do echo "::error::${line}"; done
+            done || true
             find "${VCPKG_ROOT}/" -name "*.log" | while read -r _1; do
               echo "$_1:"
               echo "======"
