@@ -37,7 +37,10 @@ env:
   TAG_NAME: "${{ inputs.upload-tag }}"
   # 关闭 vcpkg 的 x-gha 远程二进制缓存：它依赖已废弃的 actions 缓存 API，
   # 缓存服务异常时会直接让 `vcpkg install` 失败（本次失败高度怀疑就是这个）。
-  # VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
+  # 显式只用「本地文件缓存」，不碰任何远端缓存服务。
+  # x-gha 依赖已废弃的 actions 缓存 API，而我们的运行里 GitHub 缓存服务本身
+  # 就在报 "Cache service responded with 400" / "services aren't available"。
+  VCPKG_BINARY_SOURCES: "clear;files,/opt/vcpkg-binary-cache,readwrite"
   # vcpkg version: 2026.07.29
   # If we change the `VCPKG COMMIT_ID`, please remember:
   # 1. Call `$VCPKG_ROOT/vcpkg x-update-baseline` to update the baseline in `vcpkg.json`.
@@ -188,21 +191,15 @@ jobs:
               ANDROID_TARGET=x86
             ;;
           esac
-          if ! ./flutter/build_android_deps.sh "${ANDROID_TARGET}"; then
+          if ! ./flutter/build_android_deps.sh "${ANDROID_TARGET}" > /tmp/rd_vcpkg.log 2>&1; then
             echo "::error::vcpkg 步骤失败。ANDROID_NDK_HOME='${ANDROID_NDK_HOME}' VCPKG_ROOT='${VCPKG_ROOT}' ANDROID_TARGET='${ANDROID_TARGET}'"
-            find "${VCPKG_ROOT}/" -name "*.log" -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -4 | cut -d' ' -f2- | while IFS= read -r f; do
-              echo "::error::===== ${f} (last 12 lines) ====="
-              tail -n 12 "$f" | while IFS= read -r line; do echo "::error::${line}"; done
-            done || true
-            find "${VCPKG_ROOT}/" -name "*.log" | while read -r _1; do
-              echo "$_1:"
-              echo "======"
-              cat "$_1"
-              echo "======"
-              echo ""
-            done
+            echo "::error::----- vcpkg 输出末尾 20 行 -----"
+            tail -n 20 /tmp/rd_vcpkg.log | while IFS= read -r line; do echo "::error::${line}"; done
+            echo "----- 完整输出 -----"
+            cat /tmp/rd_vcpkg.log
             exit 1
           fi
+          tail -n 30 /tmp/rd_vcpkg.log
         shell: bash
 
       - name: Restore bridge files
